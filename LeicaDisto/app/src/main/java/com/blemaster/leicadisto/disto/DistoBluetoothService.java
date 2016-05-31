@@ -1241,8 +1241,3 @@ public class DistoBluetoothService
   }
 }
 
-
-/* Location:              D:\Elance\000_01_PrepareTask\DecompileAPK\Tools\jd-gui-windows-1.4.0\leca_classes-dex2jar.jar!\de\ffuf\leica\sketchlibrary\disto\DistoBluetoothService.class
- * Java compiler version: 6 (50.0)
- * JD-Core Version:       0.7.1
- */
