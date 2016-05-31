@@ -52,48 +52,59 @@ public class DistoBluetoothService
 	private BluetoothDevice currentDevice;
 	private DistoDevice dbDevice;
 	private boolean forceStopped;
+
 	BluetoothGattCallback gattCallback = new BluetoothGattCallback()
 	{
-	DistoMeasurement currentMeasure = new DistoMeasurement();
+		DistoMeasurement currentMeasure = new DistoMeasurement();
 	
-	private boolean enableNotification(BluetoothGattCharacteristic paramAnonymousBluetoothGattCharacteristic)
-	{
-		boolean bool = true;
-		if ((DistoBluetoothService.this.btGatt == null) || (paramAnonymousBluetoothGattCharacteristic == null)) {}
-		while (!DistoBluetoothService.this.btGatt.setCharacteristicNotification(paramAnonymousBluetoothGattCharacteristic, true)) {
-		return false;
-		}
-		Object localObject;
-		if (paramAnonymousBluetoothGattCharacteristic.getUuid().equals(DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE_DISPLAY_UNIT))
+		private boolean enableNotification(BluetoothGattCharacteristic paramAnonymousBluetoothGattCharacteristic)
 		{
-		DistoBluetoothService.this.setState(3);
-		localObject = DistoBluetoothService.this.m_Handler.obtainMessage(4);
-		Bundle localBundle = new Bundle();
-		localBundle.putBoolean("device_isble", true);
-		JQuery.e("DEVICE NAME ON CONNECT: " + DistoBluetoothService.this.btGatt.getDevice().getName());
-		localBundle.putString("device_name", DistoBluetoothService.this.btGatt.getDevice().getName());
-		localBundle.putString("device_address", DistoBluetoothService.this.btGatt.getDevice().getAddress());
-		((Message)localObject).setData(localBundle);
-		DistoBluetoothService.this.m_Handler.sendMessage((Message)localObject);
-		localObject = DistoBluetoothService.this;
-		if (DistoBluetoothService.this.currentDevice.getBondState() != 12) {
-			break label241;
+			boolean bool = true;
+
+			if ((DistoBluetoothService.this.btGatt == null) || (paramAnonymousBluetoothGattCharacteristic == null)) {
+				return false;
+			}
+
+			while (!DistoBluetoothService.this.btGatt.setCharacteristicNotification(paramAnonymousBluetoothGattCharacteristic, true)) {
+				return false;
+			}
+
+			Object localObject;
+			Message handlerMsg;
+
+			if (paramAnonymousBluetoothGattCharacteristic.getUuid().equals(DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE_DISPLAY_UNIT))
+			{
+				DistoBluetoothService.this.setState(3);
+				handlerMsg = DistoBluetoothService.this.m_Handler.obtainMessage(4);
+				Bundle localBundle = new Bundle();
+
+				localBundle.putBoolean("device_isble", true);
+
+//				JQuery.e("DEVICE NAME ON CONNECT: " + DistoBluetoothService.this.btGatt.getDevice().getName());
+				localBundle.putString("device_name", DistoBluetoothService.this.btGatt.getDevice().getName());
+				localBundle.putString("device_address", DistoBluetoothService.this.btGatt.getDevice().getAddress());
+				handlerMsg.setData(localBundle);
+
+				DistoBluetoothService.this.m_Handler.sendMessage(handlerMsg);
+				localObject = DistoBluetoothService.this;
+				if (DistoBluetoothService.this.currentDevice.getBondState() != 12) {
+					break label241;
+				}
+			}
+			for (;;)
+			{
+			DistoBluetoothService.access$2002((DistoBluetoothService)localObject, bool);
+			paramAnonymousBluetoothGattCharacteristic = paramAnonymousBluetoothGattCharacteristic.getDescriptor(DISTOtransfer.DISTO_DESCRIPTOR);
+			if (paramAnonymousBluetoothGattCharacteristic == null) {
+				break;
+			}
+			Log.i("DISTO BluetoothService", "enable notification");
+			paramAnonymousBluetoothGattCharacteristic.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+			return DistoBluetoothService.this.btGatt.writeDescriptor(paramAnonymousBluetoothGattCharacteristic);
+			label241:
+			bool = false;
+			}
 		}
-		}
-		for (;;)
-		{
-		DistoBluetoothService.access$2002((DistoBluetoothService)localObject, bool);
-		paramAnonymousBluetoothGattCharacteristic = paramAnonymousBluetoothGattCharacteristic.getDescriptor(DISTOtransfer.DISTO_DESCRIPTOR);
-		if (paramAnonymousBluetoothGattCharacteristic == null) {
-			break;
-		}
-		Log.i("DISTO BluetoothService", "enable notification");
-		paramAnonymousBluetoothGattCharacteristic.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-		return DistoBluetoothService.this.btGatt.writeDescriptor(paramAnonymousBluetoothGattCharacteristic);
-		label241:
-		bool = false;
-		}
-	}
 	
 	public void onCharacteristicChanged(BluetoothGatt paramAnonymousBluetoothGatt, BluetoothGattCharacteristic paramAnonymousBluetoothGattCharacteristic)
 	{
@@ -921,8 +932,7 @@ public class DistoBluetoothService
 	}
 	}
 	
-	private class ConnectThread
-	extends Thread
+	private class ConnectThread extends Thread
 	{
 	private final BluetoothDevice m_BluetoothDevice;
 	private final BluetoothSocket m_BluetoothSocket;
@@ -949,295 +959,292 @@ public class DistoBluetoothService
 		this.m_BluetoothSocket = DistoBluetoothService.this;
 	}
 	
-	public void cancel()
-	{
-		try
+		public void cancel()
 		{
-		this.m_BluetoothSocket.close();
-		return;
+			try
+			{
+				this.m_BluetoothSocket.close();
+			}
+			catch (IOException localIOException)
+			{
+				Log.e("DISTO BluetoothService", "close() of connect socket failed", localIOException);
+				DistoBluetoothService.this.m_Handler.obtainMessage(6, 1, -1).sendToTarget();
+			}
 		}
-		catch (IOException localIOException)
+	
+		public void run()
 		{
-		Log.e("DISTO BluetoothService", "close() of connect socket failed", localIOException);
-		DistoBluetoothService.this.m_Handler.obtainMessage(6, 1, -1).sendToTarget();
+			Log.i("DISTO BluetoothService", "BEGIN mConnectThread");
+			setName("ConnectThread");
+			if (DistoBluetoothService.this.m_BluetoothAdapter.isDiscovering()) {
+			DistoBluetoothService.this.m_BluetoothAdapter.cancelDiscovery();
+			}
+			try
+			{
+			Thread.sleep(50L, 0);
+			Log.d("DISTO BluetoothService", "m_BluetoothSocket.connect()...");
+			this.m_BluetoothSocket.connect();
+			}
+			catch (IOException localIOException1)
+			{
+			synchronized (DistoBluetoothService.this)
+			{
+				DistoBluetoothService.access$1502(DistoBluetoothService.this, null);
+				DistoBluetoothService.this.connected(this.m_BluetoothSocket, this.m_BluetoothDevice);
+				return;
+				localIOException1 = localIOException1;
+				Log.e("DISTO BluetoothService", "m_BluetoothSocket.connect() failed", localIOException1);
+				DistoBluetoothService.this.connectionFailed();
+				try
+				{
+				Log.d("DISTO BluetoothService", "Try BluetoothSocket.close()");
+				this.m_BluetoothSocket.close();
+				DistoBluetoothService.this.start();
+				return;
+				}
+				catch (IOException localIOException2)
+				{
+				for (;;)
+				{
+					Log.e("DISTO BluetoothService", "Error m_BluetoothSocket.close() socket during connection", localIOException2);
+					DistoBluetoothService.this.m_Handler.obtainMessage(6, 1, -1).sendToTarget();
+				}
+				}
+			}
+			}
+			catch (InterruptedException localInterruptedException)
+			{
+			for (;;) {}
+			}
 		}
 	}
 	
-	public void run()
+	private class ConnectedThread extends Thread
 	{
-		Log.i("DISTO BluetoothService", "BEGIN mConnectThread");
-		setName("ConnectThread");
-		if (DistoBluetoothService.this.m_BluetoothAdapter.isDiscovering()) {
-		DistoBluetoothService.this.m_BluetoothAdapter.cancelDiscovery();
-		}
-		try
+		private final InputStream mmInStream;
+		private final OutputStream mmOutStream;
+		private final BluetoothSocket mmSocket;
+	
+		public ConnectedThread(BluetoothSocket paramBluetoothSocket)
 		{
-		Thread.sleep(50L, 0);
-		Log.d("DISTO BluetoothService", "m_BluetoothSocket.connect()...");
-		this.m_BluetoothSocket.connect();
-		}
-		catch (IOException localIOException1)
-		{
-		synchronized (DistoBluetoothService.this)
-		{
-			DistoBluetoothService.access$1502(DistoBluetoothService.this, null);
-			DistoBluetoothService.this.connected(this.m_BluetoothSocket, this.m_BluetoothDevice);
-			return;
-			localIOException1 = localIOException1;
-			Log.e("DISTO BluetoothService", "m_BluetoothSocket.connect() failed", localIOException1);
-			DistoBluetoothService.this.connectionFailed();
+			Log.d("DISTO BluetoothService", "create ConnectedThread");
+			this.mmSocket = paramBluetoothSocket;
+			Object localObject1 = null;
+			localObject2 = null;
 			try
 			{
-			Log.d("DISTO BluetoothService", "Try BluetoothSocket.close()");
-			this.m_BluetoothSocket.close();
-			DistoBluetoothService.this.start();
-			return;
+			InputStream localInputStream = paramBluetoothSocket.getInputStream();
+			localObject1 = localInputStream;
+			paramBluetoothSocket = paramBluetoothSocket.getOutputStream();
+			this$1 = paramBluetoothSocket;
+			localObject1 = localInputStream;
 			}
-			catch (IOException localIOException2)
+			catch (IOException paramBluetoothSocket)
 			{
 			for (;;)
 			{
-				Log.e("DISTO BluetoothService", "Error m_BluetoothSocket.close() socket during connection", localIOException2);
-				DistoBluetoothService.this.m_Handler.obtainMessage(6, 1, -1).sendToTarget();
+				Log.e("DISTO BluetoothService", "temp sockets not created", paramBluetoothSocket);
+				DistoBluetoothService.this.m_Handler.obtainMessage(6, 3, -1).sendToTarget();
+				this$1 = (DistoBluetoothService)localObject2;
 			}
 			}
+			this.mmInStream = ((InputStream)localObject1);
+			this.mmOutStream = DistoBluetoothService.this;
 		}
-		}
-		catch (InterruptedException localInterruptedException)
-		{
-		for (;;) {}
-		}
-	}
-	}
 	
-	private class ConnectedThread
-	extends Thread
-	{
-	private final InputStream mmInStream;
-	private final OutputStream mmOutStream;
-	private final BluetoothSocket mmSocket;
+		public boolean SendCommand(int paramInt)
+		{
+			if (DistoBluetoothService.this.m_DistoMachine.hasDistoCmd(paramInt))
+			{
+			Log.d("DISTO BluetoothService", "Send: " + DistoBluetoothService.this.m_DistoMachine.getDistoCmd(paramInt));
+			write(DistoBluetoothService.this.m_DistoMachine.getDistoCmd(paramInt).getBytes());
+			write("\r\n".getBytes());
+			}
+			return false;
+		}
 	
-	public ConnectedThread(BluetoothSocket paramBluetoothSocket)
-	{
-		Log.d("DISTO BluetoothService", "create ConnectedThread");
-		this.mmSocket = paramBluetoothSocket;
-		Object localObject1 = null;
-		localObject2 = null;
-		try
+		public void cancel()
 		{
-		InputStream localInputStream = paramBluetoothSocket.getInputStream();
-		localObject1 = localInputStream;
-		paramBluetoothSocket = paramBluetoothSocket.getOutputStream();
-		this$1 = paramBluetoothSocket;
-		localObject1 = localInputStream;
-		}
-		catch (IOException paramBluetoothSocket)
-		{
-		for (;;)
-		{
-			Log.e("DISTO BluetoothService", "temp sockets not created", paramBluetoothSocket);
-			DistoBluetoothService.this.m_Handler.obtainMessage(6, 3, -1).sendToTarget();
-			this$1 = (DistoBluetoothService)localObject2;
-		}
-		}
-		this.mmInStream = ((InputStream)localObject1);
-		this.mmOutStream = DistoBluetoothService.this;
-	}
-	
-	public boolean SendCommand(int paramInt)
-	{
-		if (DistoBluetoothService.this.m_DistoMachine.hasDistoCmd(paramInt))
-		{
-		Log.d("DISTO BluetoothService", "Send: " + DistoBluetoothService.this.m_DistoMachine.getDistoCmd(paramInt));
-		write(DistoBluetoothService.this.m_DistoMachine.getDistoCmd(paramInt).getBytes());
-		write("\r\n".getBytes());
-		}
-		return false;
-	}
-	
-	public void cancel()
-	{
-		try
-		{
-		this.mmSocket.close();
-		return;
-		}
-		catch (IOException localIOException)
-		{
-		Log.e("DISTO BluetoothService", "close() of connect socket failed", localIOException);
-		}
-	}
-	
-	public void run()
-	{
-		Log.d("DISTO BluetoothService", "BEGIN mConnectedThread");
-		byte[] arrayOfByte = new byte['࿐'];
-		Ringbuffer localRingbuffer = new Ringbuffer(8000);
-		for (;;)
-		{
-		int j;
-		try
-		{
-			Thread.sleep(50L);
-			SendCommand(5);
 			try
 			{
-			localRingbuffer.insert(arrayOfByte, this.mmInStream.read(arrayOfByte));
-			if (!localRingbuffer.contains((byte)13)) {
-				continue;
+			this.mmSocket.close();
+			return;
 			}
-			localRingbuffer.dequeueUntil("@?!0135246789".getBytes("UTF8"));
-			Object localObject1 = new String(arrayOfByte, 0, localRingbuffer.getLine(arrayOfByte, (byte)13));
-			Log.d("DISTO BluetoothService", "line: " + (String)localObject1);
-			localObject1 = ((String)localObject1).split("[ \t\n\r]");
-			arrayOfMeasurementSet = new MeasurementSet[10];
-			i = 0;
-			k = 0;
-			if (k >= localObject1.length) {
-				continue;
-			}
-			DistoBluetoothService.this.m_DistoMachine.AnalyzeAndInterpretGsiItem(localObject1[k]);
-			j = i;
-			switch (DistoBluetoothService.this.m_DistoMachine.m_eResultType)
+			catch (IOException localIOException)
 			{
-			case 1: 
+			Log.e("DISTO BluetoothService", "close() of connect socket failed", localIOException);
+			}
+		}
+	
+		public void run()
+		{
+			Log.d("DISTO BluetoothService", "BEGIN mConnectedThread");
+			byte[] arrayOfByte = new byte['࿐'];
+			Ringbuffer localRingbuffer = new Ringbuffer(8000);
+			for (;;)
+			{
+			int j;
+			try
+			{
+				Thread.sleep(50L);
+				SendCommand(5);
+				try
+				{
+				localRingbuffer.insert(arrayOfByte, this.mmInStream.read(arrayOfByte));
+				if (!localRingbuffer.contains((byte)13)) {
+					continue;
+				}
+				localRingbuffer.dequeueUntil("@?!0135246789".getBytes("UTF8"));
+				Object localObject1 = new String(arrayOfByte, 0, localRingbuffer.getLine(arrayOfByte, (byte)13));
+				Log.d("DISTO BluetoothService", "line: " + (String)localObject1);
+				localObject1 = ((String)localObject1).split("[ \t\n\r]");
+				arrayOfMeasurementSet = new MeasurementSet[10];
+				i = 0;
+				k = 0;
+				if (k >= localObject1.length) {
+					continue;
+				}
+				DistoBluetoothService.this.m_DistoMachine.AnalyzeAndInterpretGsiItem(localObject1[k]);
+				j = i;
+				switch (DistoBluetoothService.this.m_DistoMachine.m_eResultType)
+				{
+				case 1:
+					if (arrayOfMeasurementSet[i] == null) {
+					arrayOfMeasurementSet[i] = new MeasurementSet(null);
+					}
+					j = i;
+					if (arrayOfMeasurementSet[i].resultDistance != null)
+					{
+					j = i + 1;
+					arrayOfMeasurementSet[j] = new MeasurementSet(null);
+					}
+					arrayOfMeasurementSet[j].resultDistance = DistoBluetoothService.this.m_DistoMachine.m_ResultString;
+					arrayOfMeasurementSet[j].resultDistanceUnit = DistoBluetoothService.this.m_DistoMachine.m_ResultUnitString;
+				}
+				}
+				catch (IOException localIOException)
+				{
+				Log.e("DISTO BluetoothService", "disconnected", localIOException);
+				DistoBluetoothService.this.connectionLost();
+				return;
+				}
 				if (arrayOfMeasurementSet[i] == null) {
 				arrayOfMeasurementSet[i] = new MeasurementSet(null);
 				}
 				j = i;
-				if (arrayOfMeasurementSet[i].resultDistance != null)
+				if (arrayOfMeasurementSet[i].resultAngle != null)
 				{
 				j = i + 1;
 				arrayOfMeasurementSet[j] = new MeasurementSet(null);
 				}
-				arrayOfMeasurementSet[j].resultDistance = DistoBluetoothService.this.m_DistoMachine.m_ResultString;
-				arrayOfMeasurementSet[j].resultDistanceUnit = DistoBluetoothService.this.m_DistoMachine.m_ResultUnitString;
+				arrayOfMeasurementSet[j].resultAngle = DistoBluetoothService.this.m_DistoMachine.m_ResultString;
+				arrayOfMeasurementSet[j].resultAngleUnit = DistoBluetoothService.this.m_DistoMachine.m_ResultUnitString;
+				continue;
+				j = (int)Double.parseDouble(DistoBluetoothService.this.m_DistoMachine.m_ResultString);
+				DistoBluetoothService.this.m_Handler.obtainMessage(8, j, -1, null).sendToTarget();
+				j = i;
+				continue;
+				JQuery.e("sendConfirmation: " + DistoBluetoothService.this.m_DistoMachine.m_SendConfirmation);
+				if ((DistoBluetoothService.this.m_DistoMachine.m_SendConfirmation > 0) && (DistoBluetoothService.this.m_DistoMachine.mDistoType != 0))
+				{
+				SendCommand(9);
+				continue;
+				if (j >= arrayOfMeasurementSet.length) {
+					continue;
+				}
+				if ((arrayOfMeasurementSet[j] == null) || ((arrayOfMeasurementSet[j].resultDistance == null) && (arrayOfMeasurementSet[j].resultAngle == null))) {
+					break label861;
+				}
+				DistoMeasurement localDistoMeasurement = new DistoMeasurement();
+				i = 0;
+				localDistoMeasurement.m_Time = new Time();
+				localDistoMeasurement.m_Time.setToNow();
+				localDistoMeasurement.m_bMetric = DistoBluetoothService.this.m_DistoMachine.m_bResultMetric;
+				localDistoMeasurement.m_nMetricDezimals = DistoBluetoothService.this.m_DistoMachine.m_nMetricResultDezimals;
+				if (DistoBluetoothService.this.m_DistoMachine.m_bResultUseEnter) {
+					localDistoMeasurement.m_bEnter = true;
+				}
+				if (DistoBluetoothService.this.m_DistoMachine.m_bResultUseTab) {
+					localDistoMeasurement.m_bTab = true;
+				}
+				if (arrayOfMeasurementSet[j].resultDistance != null)
+				{
+					localDistoMeasurement.m_Distance = arrayOfMeasurementSet[j].resultDistance;
+					String str = arrayOfMeasurementSet[j].resultDistance;
+					Object localObject2 = str;
+					if (str.contains(" ")) {
+					localObject2 = str.substring(0, str.indexOf(" "));
+					}
+					localDistoMeasurement.m_DistanceOriginal = Float.valueOf(((String)localObject2).replace(",", ".")).floatValue();
+					if (!DistoBluetoothService.this.m_DistoMachine.m_bResultUseUnit) {
+					break label868;
+					}
+					localDistoMeasurement.m_DistanceUnit = arrayOfMeasurementSet[j].resultDistanceUnit;
+					break label868;
+				}
+				if (arrayOfMeasurementSet[j].resultAngle != null)
+				{
+					localDistoMeasurement.m_Angle = arrayOfMeasurementSet[j].resultAngle;
+					if (!DistoBluetoothService.this.m_DistoMachine.m_bResultUseUnit) {
+					break label873;
+					}
+					localDistoMeasurement.m_AngleUnit = arrayOfMeasurementSet[j].resultAngleUnit;
+					break label873;
+				}
+				if (i == 0) {
+					break label861;
+				}
+				DistoBluetoothService.this.m_Handler.obtainMessage(9, -1, -1, localDistoMeasurement).sendToTarget();
+				}
 			}
-			}
-			catch (IOException localIOException)
+			catch (InterruptedException localInterruptedException)
 			{
-			Log.e("DISTO BluetoothService", "disconnected", localIOException);
-			DistoBluetoothService.this.connectionLost();
-			return;
-			}
-			if (arrayOfMeasurementSet[i] == null) {
-			arrayOfMeasurementSet[i] = new MeasurementSet(null);
-			}
-			j = i;
-			if (arrayOfMeasurementSet[i].resultAngle != null)
-			{
-			j = i + 1;
-			arrayOfMeasurementSet[j] = new MeasurementSet(null);
-			}
-			arrayOfMeasurementSet[j].resultAngle = DistoBluetoothService.this.m_DistoMachine.m_ResultString;
-			arrayOfMeasurementSet[j].resultAngleUnit = DistoBluetoothService.this.m_DistoMachine.m_ResultUnitString;
-			continue;
-			j = (int)Double.parseDouble(DistoBluetoothService.this.m_DistoMachine.m_ResultString);
-			DistoBluetoothService.this.m_Handler.obtainMessage(8, j, -1, null).sendToTarget();
-			j = i;
-			continue;
-			JQuery.e("sendConfirmation: " + DistoBluetoothService.this.m_DistoMachine.m_SendConfirmation);
-			if ((DistoBluetoothService.this.m_DistoMachine.m_SendConfirmation > 0) && (DistoBluetoothService.this.m_DistoMachine.mDistoType != 0))
-			{
-			SendCommand(9);
-			continue;
-			if (j >= arrayOfMeasurementSet.length) {
+				MeasurementSet[] arrayOfMeasurementSet;
+				int k;
+				continue;
+				j = i;
+				k += 1;
+				i = j;
+				continue;
+				if (arrayOfMeasurementSet[0] == null) {
+				continue;
+				}
+				j = 0;
 				continue;
 			}
-			if ((arrayOfMeasurementSet[j] == null) || ((arrayOfMeasurementSet[j].resultDistance == null) && (arrayOfMeasurementSet[j].resultAngle == null))) {
-				break label861;
-			}
-			DistoMeasurement localDistoMeasurement = new DistoMeasurement();
-			i = 0;
-			localDistoMeasurement.m_Time = new Time();
-			localDistoMeasurement.m_Time.setToNow();
-			localDistoMeasurement.m_bMetric = DistoBluetoothService.this.m_DistoMachine.m_bResultMetric;
-			localDistoMeasurement.m_nMetricDezimals = DistoBluetoothService.this.m_DistoMachine.m_nMetricResultDezimals;
-			if (DistoBluetoothService.this.m_DistoMachine.m_bResultUseEnter) {
-				localDistoMeasurement.m_bEnter = true;
-			}
-			if (DistoBluetoothService.this.m_DistoMachine.m_bResultUseTab) {
-				localDistoMeasurement.m_bTab = true;
-			}
-			if (arrayOfMeasurementSet[j].resultDistance != null)
-			{
-				localDistoMeasurement.m_Distance = arrayOfMeasurementSet[j].resultDistance;
-				String str = arrayOfMeasurementSet[j].resultDistance;
-				Object localObject2 = str;
-				if (str.contains(" ")) {
-				localObject2 = str.substring(0, str.indexOf(" "));
-				}
-				localDistoMeasurement.m_DistanceOriginal = Float.valueOf(((String)localObject2).replace(",", ".")).floatValue();
-				if (!DistoBluetoothService.this.m_DistoMachine.m_bResultUseUnit) {
-				break label868;
-				}
-				localDistoMeasurement.m_DistanceUnit = arrayOfMeasurementSet[j].resultDistanceUnit;
-				break label868;
-			}
-			if (arrayOfMeasurementSet[j].resultAngle != null)
-			{
-				localDistoMeasurement.m_Angle = arrayOfMeasurementSet[j].resultAngle;
-				if (!DistoBluetoothService.this.m_DistoMachine.m_bResultUseUnit) {
-				break label873;
-				}
-				localDistoMeasurement.m_AngleUnit = arrayOfMeasurementSet[j].resultAngleUnit;
-				break label873;
-			}
-			if (i == 0) {
-				break label861;
-			}
-			DistoBluetoothService.this.m_Handler.obtainMessage(9, -1, -1, localDistoMeasurement).sendToTarget();
+			label861:
+			j += 1;
+			continue;
+			label868:
+			int i = 1;
+			continue;
+			label873:
+			i = 1;
 			}
 		}
-		catch (InterruptedException localInterruptedException)
-		{
-			MeasurementSet[] arrayOfMeasurementSet;
-			int k;
-			continue;
-			j = i;
-			k += 1;
-			i = j;
-			continue;
-			if (arrayOfMeasurementSet[0] == null) {
-			continue;
-			}
-			j = 0;
-			continue;
-		}
-		label861:
-		j += 1;
-		continue;
-		label868:
-		int i = 1;
-		continue;
-		label873:
-		i = 1;
-		}
-	}
 	
-	public void write(byte[] paramArrayOfByte)
-	{
-		try
+		public void write(byte[] paramArrayOfByte)
 		{
-		this.mmOutStream.write(paramArrayOfByte);
-		return;
+			try
+			{
+				this.mmOutStream.write(paramArrayOfByte);
+			}
+			catch (IOException err)
+			{
+				Log.e("DISTO BluetoothService", "Exception during write", err);
+				DistoBluetoothService.this.m_Handler.obtainMessage(6, 4, -1).sendToTarget();
+			}
 		}
-		catch (IOException paramArrayOfByte)
-		{
-		Log.e("DISTO BluetoothService", "Exception during write", paramArrayOfByte);
-		DistoBluetoothService.this.m_Handler.obtainMessage(6, 4, -1).sendToTarget();
-		}
-	}
 	
-	private class MeasurementSet
-	{
-		public String resultAngle = null;
-		public String resultAngleUnit = null;
-		public String resultDistance = null;
-		public String resultDistanceUnit = null;
-		
-		private MeasurementSet() {}
-	}
+		private class MeasurementSet
+		{
+			public String resultAngle = null;
+			public String resultAngleUnit = null;
+			public String resultDistance = null;
+			public String resultDistanceUnit = null;
+
+			private MeasurementSet() {}
+		}
 	}
 }
 
